@@ -4,6 +4,7 @@ from io import BytesIO
 from django.contrib.auth import get_user_model, login, logout
 from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
+from django.core.validators import validate_email
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -145,6 +146,15 @@ def create_user_view(request):
     if not username or not email or not password or role not in VALID_ROLES:
         return JsonResponse({"detail": "Username, email, password, and valid role are required."}, status=400)
 
+    #validate email format before creating the user
+    try:
+        validate_email(email)
+    except ValidationError:
+        return JsonResponse(
+            {"detail": "Please enter a valid email address."},
+            status=400
+        )
+
     UserModel = get_user_model()
     if UserModel.objects.filter(email__iexact=email).exists():
         return JsonResponse({"detail": "Email already in use."}, status=409)
@@ -185,6 +195,16 @@ def update_user_view(request, user_id):
 
     if not username or not email or role not in VALID_ROLES:
         return JsonResponse({"detail": "Username, email, and valid role are required."}, status=400)
+
+    # Validate email format before updating the user
+    try:
+        validate_email(email)
+    except ValidationError:
+        return JsonResponse(
+            {"detail": "Please enter a valid email address."},
+            status=400
+        )
+
 
     UserModel = get_user_model()
     try:
@@ -303,6 +323,17 @@ def bulk_import_users_view(request):
             if not username_raw or not email_lower or not password_raw or role_lower not in role_groups:
                 skipped_invalid.append({"row": idx, "reason": "Missing fields or invalid role"})
                 continue
+
+            #reject invalid email formats during excel import
+            try:
+                validate_email(email_lower)
+            except ValidationError:
+                skipped_invalid.append({
+                    "row": idx,
+                    "reason": "Invalid email address"
+                })
+                continue
+
             if email_lower in seen:
                 skipped_invalid.append({"row": idx, "reason": "Duplicate email in file"})
                 continue
