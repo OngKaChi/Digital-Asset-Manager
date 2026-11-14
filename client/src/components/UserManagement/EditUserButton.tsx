@@ -23,7 +23,7 @@ type EditUserButtonProps = {
 }
 
 const roleCollection = createListCollection({
-  items: ["admin", "editor", "viewer"].map((role) => ({
+  items: ["superadmin", "admin", "editor", "viewer"].map((role) => ({
     label: role.charAt(0).toUpperCase() + role.slice(1),
     value: role,
   })),

@@ -34,7 +34,7 @@ export default function AssetMetadata({ assetId, initialMetadata = [] }: AssetMe
   const authUser = useAuthUser();
   const canEditMetadata = useMemo(() => {
     const role = authUser?.role?.toLowerCase() ?? null;
-    return role === "admin" || role === "editor";
+    return role === "superadmin" || role === "admin" || role === "editor";
   }, [authUser?.role]);
 
   const initialSnapshot = useRef<string | null>(null);

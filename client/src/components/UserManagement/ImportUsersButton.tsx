@@ -277,7 +277,7 @@ export default function ImportUsersButton({ onImported, variant = "button" }: Im
 
               <Stack gap={2} fontSize="sm" color={{ base: "gray.600", _dark: "gray.300" }}>
                 <Text fontWeight="semibold">Required columns</Text>
-                <Text>username • email • password • role (admin | editor | viewer)</Text>
+                <Text>username • email • password • role (superadmin | admin | editor | viewer)</Text>
                 <Text>Ensure each row has unique emails. Headings must match exactly.</Text>
               </Stack>
 

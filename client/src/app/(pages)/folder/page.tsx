@@ -121,7 +121,7 @@ export default function FolderPage() {
                                                 </Portal>
                                         </Select.Root>
                                     </Box>
-                                    {selectedFolderId != null && ["admin","editor"].includes((user.role ?? "").toLowerCase()) && (
+                                    {selectedFolderId != null && ["superadmin","admin","editor"].includes((user.role ?? "").toLowerCase()) && (
                                         <>
                                             <IconButton
                                                 aria-label="Add assets to folder"
@@ -163,7 +163,7 @@ export default function FolderPage() {
                 folderId={selectedFolderId ?? undefined}
             />
 
-            {selectedFolderId != null && ["admin","editor"].includes((user.role ?? "").toLowerCase()) && (
+            {selectedFolderId != null && ["superadmin","admin","editor"].includes((user.role ?? "").toLowerCase()) && (
                 <AddAssetsToFolderDialog
                 folderId={selectedFolderId}
                 open={addOpen}
@@ -171,7 +171,7 @@ export default function FolderPage() {
                 onAssigned={() => setReloadKey((k) => k + 1)}
                 />
             )}
-                        {selectedFolderId != null && ["admin","editor"].includes((user.role ?? "").toLowerCase()) && (
+                        {selectedFolderId != null && ["superadmin","admin","editor"].includes((user.role ?? "").toLowerCase()) && (
                                 <RemoveAssetsFromFolderDialog
                                     folderId={selectedFolderId}
                                     open={removeOpen}

@@ -35,7 +35,7 @@ export default function FolderLoader() {
     const authUser = useAuthUser();
     const canManage = useMemo(() => {
       const role = (authUser?.role ?? "").toLowerCase();
-      return role === "admin" || role === "editor";
+      return role === "superadmin" || role === "admin" || role === "editor";
     }, [authUser]);
     const [folders, setFolders] = useState<Folder[]>([]);
     const [counts, setCounts] = useState<Record<number, number>>({});

@@ -41,7 +41,7 @@ export default function AssetPreview({ asset }: { asset: AssetType }) {
     const authUser = useAuthUser();
     const canEditAsset = useMemo(() => {
         const role = authUser?.role?.toLowerCase() ?? null;
-        return role === "admin" || role === "editor";
+        return role === "superadmin" || role === "admin" || role === "editor";
     }, [authUser?.role]);
 
     const muted = { base: "gray.600", _dark: "gray.400" };
