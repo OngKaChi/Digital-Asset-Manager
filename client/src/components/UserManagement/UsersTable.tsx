@@ -1,3 +1,4 @@
+import { useAuthUser } from "@/components/auth/PrivateRoute"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Box,
@@ -63,6 +64,9 @@ function UsersTable() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [filtersExpanded, setFiltersExpanded] = useState(false)
 
+  const currentUser = useAuthUser()
+  const isSuperAdmin = currentUser?.is_superuser === true
+
   const isMountedRef = useRef(true)
 
   useEffect(() => {
@@ -115,6 +119,7 @@ function UsersTable() {
 
   const roleOptions = useMemo<ColumnFilterConfig["options"]>(
     () => [
+      { label: "Superadmin", value: "superadmin" },
       { label: "Admin", value: "admin" },
       { label: "Editor", value: "editor" },
       { label: "Viewer", value: "viewer" },
@@ -201,21 +206,28 @@ function UsersTable() {
         header: "Actions",
         enableSorting: false,
         enableColumnFilter: false,
+
         cell: ({ row }) => {
-          if (row.original.role === "admin") {
+          const targetUser = row.original
+
+          //always protect super admin accounts
+          if (
+            targetUser.is_superuser === true ||
+            (targetUser.role === "admin" && !isSuperAdmin)
+          ) {
             return <Text fontSize="sm" color="gray.500">Protected</Text>
           }
 
           return (
             <HStack gap={3}>
-              <EditUserButton user={row.original} onUpdated={handleUserUpdated} />
-              <DeleteUserButton user={row.original} onDeleted={handleUserDeleted} />
+              <EditUserButton user={targetUser} onUpdated={handleUserUpdated} />
+              <DeleteUserButton user={targetUser} onDeleted={handleUserDeleted} />
             </HStack>
           )
         },
       },
     ],
-    [filterConfigs, filtersExpanded, handleUserDeleted, handleUserUpdated]
+    [filterConfigs, filtersExpanded, handleUserDeleted, handleUserUpdated, isSuperAdmin]
   )
 
   const table = useReactTable({

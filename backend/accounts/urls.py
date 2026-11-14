@@ -8,8 +8,11 @@ app_name = "accounts"
 
 urlpatterns = [
 	path("login/", views.login_view, name="login"),
+    path("forgot-password/", views.forgot_password_view, name="forgot-password"),
+	path("reset-password/", views.reset_password_view, name="reset-password"),
 	path("logout/", views.logout_view, name="logout"),
 	path("me/", views.current_user_view, name="current-user"),
+    path("user-audit-log/", views.user_audit_log_view, name="user-audit-log"),
     path("users/", views.user_list_view, name="user-list"),
     path("users/sample/", views.user_import_sample_view, name="user-import-sample"),
     path("create-user/", views.create_user_view, name="create-user"),

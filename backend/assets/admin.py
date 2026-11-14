@@ -1,5 +1,7 @@
 # assets/admin.py
 from django.contrib import admin
+from auditlog.admin import LogEntryAdmin
+from auditlog.models import LogEntry
 from .models import (
     Folder,
     Asset,
@@ -10,6 +12,25 @@ from .models import (
     AssetMetadata,
 )
 
+admin.site.unregister(LogEntry)
+
+@admin.register(LogEntry)
+class AdminLogEntryAdmin(LogEntryAdmin):
+    def has_module_permission(self, request):
+        # Allow access to the audit log for superadmin and admin users
+        return request.user.is_admin
+    def has_view_permission(self, request, obj=None):
+        # Allow view permission for superadmin and admin users
+        return request.user.is_admin
+    def has_add_permission(self, request):
+        # Allow add permission for superadmin and admin users
+        return request.user.is_admin
+    def has_change_permission(self, request, obj=None):
+        # Allow change permission for superadmin and admin users
+        return request.user.is_admin
+    def has_delete_permission(self, request, obj=None):
+        # Allow delete permission for superadmin and admin users
+        return request.user.is_admin
 
 @admin.register(Folder)
 class FolderAdmin(admin.ModelAdmin):

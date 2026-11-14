@@ -7,3 +7,4 @@ __pycache__/
 .env.*
 !.env.example
 payload2.html
+backend/.venv/

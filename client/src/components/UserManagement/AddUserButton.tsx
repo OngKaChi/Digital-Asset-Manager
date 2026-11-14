@@ -23,7 +23,7 @@ type AddUserButtonProps = {
 const Label = chakra("label")
 
 const roleCollection = createListCollection({
-  items: ["admin", "editor", "viewer"].map((role) => ({
+  items: ["superadmin", "admin", "editor", "viewer"].map((role) => ({
     label: role.charAt(0).toUpperCase() + role.slice(1),
     value: role,
   })),
@@ -71,6 +71,18 @@ export default function AddUserButton({ onCreated }: AddUserButtonProps) {
           closable: true,
         })
         setIsSubmitting(false)
+        return
+      }
+
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+      if (!emailPattern.test(payload.email)) {
+        toaster.create({
+          type: "error",
+          title: "Invalid email address",
+          description: "Please enter a valid email address, such as name@example.com.",
+          closable: true,
+        })
         return
       }
 

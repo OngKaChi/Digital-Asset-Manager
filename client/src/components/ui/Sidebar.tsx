@@ -86,10 +86,11 @@ type SidebarContentProps = BoxProps & {
 };
 
 const SidebarContent = ({ userRole, onCategoryChange, ...props }: SidebarContentProps) => {
-  const canManageUsers = userRole === 'admin';
-  const canViewInsights = userRole === 'admin' || userRole === 'editor';
-  const showAdminSection = canManageUsers || canViewInsights;
-  const canUpload = userRole === "admin" || userRole === "editor";
+  const canManageUsers = userRole === 'superadmin' || userRole === 'admin';
+  const canViewInsights = userRole === 'superadmin' || userRole === 'admin' || userRole === 'editor';
+  const canViewUserLogs = userRole === 'superadmin' || userRole === 'admin';
+  const showAdminSection = canManageUsers || canViewInsights || canViewUserLogs;
+  const canUpload = userRole === "superadmin" || userRole === "admin" || userRole === "editor";
 
   const [assetCounts, setAssetCounts] = useState({
     all: 0,
@@ -182,6 +183,7 @@ const SidebarContent = ({ userRole, onCategoryChange, ...props }: SidebarContent
             <Stack gap="1">
               {canManageUsers && <SidebarItem icon={FiUsers} label="User Management" link='./user_management' />}
               {canViewInsights && <SidebarItem icon={FiBarChart2} label="Insights" link='./insights' />}
+              {canViewUserLogs && <SidebarItem icon={FiFileText} label="User Logs" link='/user_logs' />}
             </Stack>
           </Box>
         )}

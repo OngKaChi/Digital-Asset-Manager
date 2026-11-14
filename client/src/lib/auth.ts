@@ -3,6 +3,7 @@ export interface CurrentUser {
   username: string
   email: string
   role: string | null
+  is_superuser?: boolean
 }
 
 export async function fetchCurrentUser(): Promise<CurrentUser | null> {
@@ -53,14 +54,14 @@ export type UpdateUserInput = {
   username: string
   email: string
   password?: string
-  role: "admin" | "editor" | "viewer"
+  role: "superadmin" | "admin" | "editor" | "viewer"
 }
 
 export type CreateUserInput = {
   username: string
   email: string
   password: string
-  role: "admin" | "editor" | "viewer"
+  role: "superadmin" | "admin" | "editor" | "viewer"
 }
 
 export async function updateUser(userId: number, payload: UpdateUserInput): Promise<ManagedUser> {

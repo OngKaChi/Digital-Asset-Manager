@@ -83,7 +83,7 @@ export default function AssetMenu({ asset }: Props) {
   const isGLB = url?.toLowerCase().endsWith('.glb') || url?.toLowerCase().endsWith('.gltf');
   const canManageAssets = useMemo(() => {
     const role = authUser?.role?.toLowerCase() ?? null;
-    return role === 'admin' || role === 'editor';
+    return role === 'superadmin' || role === 'admin' || role === 'editor';
   }, [authUser?.role]);
 
   // Fetch versions

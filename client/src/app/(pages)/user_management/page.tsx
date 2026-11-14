@@ -11,7 +11,7 @@ function UserManagementPage() {
 
 
   return (
-    <PrivateRoute roles={['admin']} redirectTo="/dashboard">
+    <PrivateRoute roles={['superadmin', 'admin']} redirectTo="/dashboard">
       {(user) => (
         <Sidebar user={user}>
           <Header 
