@@ -18,24 +18,26 @@ MAX_ATTEMPTS = 5
 LOCKOUT_SECONDS = 15 * 60  # 15 minutes
 VALID_ROLES = {"admin", "editor", "viewer"}
 
-
 def _rate_limit_key(request, email):
     ip = request.META.get("REMOTE_ADDR", "unknown")
     return f"login_attempts:{ip}:{email}"
 
-
 def _user_payload(user):
     primary_group = user.groups.first()
+
     return {
         "id": user.id,
         "username": user.get_username(),
         "email": user.email,
-        "role": primary_group.name if primary_group else None,
+        "role": "admin" if user.is_superuser else (
+            primary_group.name if primary_group else None
+        ),
+        "is_superuser": user.is_superuser,
     }
 
 
 def _is_admin(user):
-    return user.is_authenticated and user.groups.filter(name="admin").exists()
+    return user.is_authenticated and user.is_active and (user.is_superuser or user.groups.filter(name="admin").exists())
 
 
 # Login Function
@@ -161,6 +163,11 @@ def create_user_view(request):
 
     if not username or not email or not password or role not in VALID_ROLES:
         return JsonResponse({"detail": "Username, email, password, and valid role are required."}, status=400)
+    #only the super admins can create admin accounts
+    if role == "admin" and not request.user.is_superuser:
+        return JsonResponse(
+            {"detail": "Only Super Admins can create Admin accounts."},status=403)
+
 
     #validate email format before creating the user
     try:
@@ -288,8 +295,18 @@ def update_user_view(request, user_id):
     except UserModel.DoesNotExist:
         return JsonResponse({"detail": "User not found."}, status=404)
 
-    if user.groups.filter(name="admin").exists():
-        return JsonResponse({"detail": "Administrator accounts cannot be edited."}, status=403)
+    #protect super admin accounts from being edited
+    if user.is_superuser:
+        return JsonResponse({"detail": "Super Admin accounts cannot be edited here."},status=403)
+
+    #only super admins can edit the regular admin accounts
+    if user.groups.filter(name="admin").exists() and not request.user.is_superuser:
+        return JsonResponse({"detail": "Only Super Admins can edit Admin accounts."},status=403)
+
+    #only super admins can promote users to admin level
+    if role == "admin" and not request.user.is_superuser:
+        return JsonResponse({"detail": "Only Super Admins can assign the Admin role."},status=403)
+
     #check whether another user already have this username or not
     if UserModel.objects.filter(username__iexact=username).exclude(id=user_id).exists():
         return JsonResponse({"detail": "Username already in use."},status=409)
@@ -331,8 +348,16 @@ def delete_user_view(request, user_id):
     except UserModel.DoesNotExist:
         return JsonResponse({"detail": "User not found."}, status=404)
 
-    if user.groups.filter(name="admin").exists():
-        return JsonResponse({"detail": "Administrator accounts cannot be deleted."}, status=403)
+    #if user.groups.filter(name="admin").exists():
+    #    return JsonResponse({"detail": "Administrator accounts cannot be deleted."}, status=403)
+
+    #protect super admin accs from deletion
+    if user.is_superuser:
+        return JsonResponse({"detail": "Super Admin accounts cannot be deleted here."},status=403)
+
+    #only super admins can delete admin accounts
+    if user.groups.filter(name="admin").exists() and not request.user.is_superuser:
+        return JsonResponse({"detail": "Only Super Admins can delete Admin accounts."},status=403)
 
     user.delete()
     return JsonResponse({"success": True})
@@ -422,6 +447,14 @@ def bulk_import_users_view(request):
 
             email_lower = email_raw.lower()
             role_lower = role_raw.lower()
+
+            #only super admins can import admin accounts
+            if role_lower == "admin" and not request.user.is_superuser:
+                skipped_invalid.append({
+                    "row": idx,
+                    "reason": "Only Super Admins can import Admin accounts"})
+                continue
+
 
             if not username_raw or not email_lower or not password_raw or role_lower not in role_groups:
                 skipped_invalid.append({"row": idx, "reason": "Missing fields or invalid role"})
