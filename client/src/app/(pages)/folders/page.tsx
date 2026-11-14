@@ -19,13 +19,13 @@ export default function FoldersPage() {
   }, []);
 
   return (
-    <PrivateRoute roles={["admin", "editor","viewer"]}>
+    <PrivateRoute roles={["superadmin", "admin", "editor", "viewer"]}>
       {(user) => (
         <Sidebar user={user}>
           <Box>
             <Header title="Folders" description="Manage folders and see how many assets each contains." />
 
-            {(user.role?.toLowerCase() === "admin" || user.role?.toLowerCase() === "editor") && (
+            {(user.role?.toLowerCase() === "superadmin" || user.role?.toLowerCase() === "admin" || user.role?.toLowerCase() === "editor") && (
               <HStack mb={3}>
                 <NewFolderButton backendRoute={BackendRoute} />
               </HStack>

@@ -16,7 +16,7 @@ interface UploadPrivateRouteProps {
 
 export default function UploadPrivateRoute({ children }: UploadPrivateRouteProps) {
   return (
-    <PrivateRoute roles={["admin", "editor"]} redirectTo="/">
+    <PrivateRoute roles={["superadmin", "admin", "editor"]} redirectTo="/">
       {(user)=>children}
     </PrivateRoute>
   )

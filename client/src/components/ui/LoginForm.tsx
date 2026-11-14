@@ -6,6 +6,7 @@ import {
 	Checkbox,
 	Heading,
 	Input,
+	Link,
 	Stack,
 	Text,
 	chakra,
@@ -193,6 +194,9 @@ export function LoginForm({
 							Sign in
 						</Button>
 					</Stack>
+                    <Link href="/forgot-password" style={{ display: 'block', marginTop: '1rem', textAlign: 'center', fontSize: '0.875rem', color: '#3182ce' }}>
+                        Forgot password?
+                    </Link>					
 				</chakra.form>
 			</Stack>
 		</Card.Root>

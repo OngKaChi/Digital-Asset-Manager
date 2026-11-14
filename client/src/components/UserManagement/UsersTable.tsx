@@ -119,6 +119,7 @@ function UsersTable() {
 
   const roleOptions = useMemo<ColumnFilterConfig["options"]>(
     () => [
+      { label: "Superadmin", value: "superadmin" },
       { label: "Admin", value: "admin" },
       { label: "Editor", value: "editor" },
       { label: "Viewer", value: "viewer" },
