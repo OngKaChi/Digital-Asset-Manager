@@ -74,6 +74,18 @@ export default function AddUserButton({ onCreated }: AddUserButtonProps) {
         return
       }
 
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+      if (!emailPattern.test(payload.email)) {
+        toaster.create({
+          type: "error",
+          title: "Invalid email address",
+          description: "Please enter a valid email address, such as name@example.com.",
+          closable: true,
+        })
+        return
+      }
+
       const createdUser = await createUser(payload)
       onCreated(createdUser)
 

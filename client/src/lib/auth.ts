@@ -3,6 +3,7 @@ export interface CurrentUser {
   username: string
   email: string
   role: string | null
+  is_superuser?: boolean
 }
 
 export async function fetchCurrentUser(): Promise<CurrentUser | null> {
