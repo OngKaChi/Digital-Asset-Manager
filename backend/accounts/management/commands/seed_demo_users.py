@@ -8,6 +8,12 @@ class Command(BaseCommand):
 
     demo_users = (
         {
+            "username": "superadmin_user",
+            "email": "superadmin@example.com",
+            "role": "superadmin",
+            "password": "DemoPass123",
+        },
+        {
             "username": "admin_user",
             "email": "admin@example.com",
             "role": "admin",

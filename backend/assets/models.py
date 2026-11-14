@@ -1,6 +1,7 @@
 # assets/models.py
 from django.conf import settings
 from django.db import models
+from auditlog.registry import auditlog
 import os  # Used to construct file paths dynamically
 
 
@@ -298,3 +299,12 @@ class AssetMetadata(models.Model):
 
     def __str__(self):
         return f'{self.asset.name} - {self.field.name}: {self.value}'
+
+auditlog.register(Folder)
+auditlog.register(Asset)
+auditlog.register(Version)
+auditlog.register(Tag)
+auditlog.register(AssetTag)
+auditlog.register(MetadataField)
+auditlog.register(AssetMetadata)
+auditlog.register(AssetFolder)

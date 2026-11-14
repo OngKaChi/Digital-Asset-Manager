@@ -1,20 +1,29 @@
 import json
+from datetime import timedelta
 from io import BytesIO
 
+from django.conf import settings
 from django.contrib.auth import get_user_model, login, logout
+from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from django.core.mail import send_mail
+from django.core.validators import validate_email
 from django.db import transaction
 from django.http import HttpResponse, JsonResponse
+from django.utils.encoding import force_bytes, force_str
+from django.utils import timezone
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 from openpyxl import Workbook, load_workbook
+from auditlog.models import LogEntry
 
 MAX_ATTEMPTS = 5
 LOCKOUT_SECONDS = 15 * 60  # 15 minutes
-VALID_ROLES = {"admin", "editor", "viewer"}
+VALID_ROLES = {"superadmin", "admin", "editor", "viewer"}
 
 
 def _rate_limit_key(request, email):
@@ -23,17 +32,22 @@ def _rate_limit_key(request, email):
 
 
 def _user_payload(user):
-    primary_group = user.groups.first()
+    group_names = list(user.groups.values_list("name", flat=True))
+    role = (
+        "superadmin"
+        if "superadmin" in group_names
+        else (group_names[0] if group_names else None)
+    )
     return {
         "id": user.id,
         "username": user.get_username(),
         "email": user.email,
-        "role": primary_group.name if primary_group else None,
+        "role": role,
     }
 
 
 def _is_admin(user):
-    return user.is_authenticated and user.groups.filter(name="admin").exists()
+    return user.is_authenticated and (user.groups.filter(name="admin").exists() or user.groups.filter(name="superadmin").exists())
 
 
 # Login Function
@@ -76,6 +90,20 @@ def login_view(request):
 
     if not user.is_active or not user.check_password(password):
         cache.set(key, attempts + 1, LOCKOUT_SECONDS)
+        
+        # Log the failed login attempt for audit purposes
+        LogEntry.objects.log_create(
+            instance = user,
+            action = LogEntry.Action.ACCESS,
+            actor = None,
+            remote_addr = request.META.get('REMOTE_ADDR', 'unknown'),
+            additional_data = {
+                'message': 'User login failed.',
+                'email': email,
+                'reason': 'Inactive account' if not user.is_active else 'Incorrect password'
+            },
+            force_log=True  # Ensure this log entry is created even if the user is inactive
+        )
         return generic_error
 
     # Success — clear the counter
@@ -83,6 +111,20 @@ def login_view(request):
 
     user.backend = "django.contrib.auth.backends.ModelBackend"
     login(request, user)
+    
+    # Log the successful login attempt for audit purposes
+    LogEntry.objects.log_create(
+        instance = user,
+        action = LogEntry.Action.ACCESS,
+        actor = user,
+        remote_addr = request.META.get('REMOTE_ADDR', 'unknown'),
+        additional_data = {
+            'message': 'User login successful.',
+            'email': email,
+        },
+        force_log=True  # Ensure this log entry is created even if the user is inactive
+    )
+    
     if remember_me:
         request.session.set_expiry(60 * 60 * 24 * 30)  # 30 days
     else:
@@ -90,6 +132,91 @@ def login_view(request):
 
     return JsonResponse({"user": _user_payload(user)})
 
+@csrf_exempt
+@require_POST
+def forgot_password_view(request):
+    try:
+        payload = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"detail": "Invalid JSON payload."}, status=400)
+
+    email = (payload.get("email") or "").strip().lower()
+    if not email:
+        return JsonResponse({"detail": "Email is required."}, status=400)
+    try:
+        validate_email(email)
+    except ValidationError:
+        return JsonResponse({"detail": "Enter a valid email address."}, status=400)
+
+    key = f"password_reset:{request.META.get('REMOTE_ADDR', 'unknown')}"
+    attempts = cache.get(key, 0)
+    if attempts >= MAX_ATTEMPTS:
+        return JsonResponse(
+            {"detail": "Too many reset requests. Try again later."},
+            status=429,
+        )
+    cache.set(key, attempts + 1, LOCKOUT_SECONDS)
+
+    UserModel = get_user_model()
+    users = UserModel.objects.filter(email__iexact=email, is_active=True)[:2]
+    user_list = list(users)
+    if len(user_list) == 1:
+        user = user_list[0]
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        reset_url = (
+            f"{settings.FRONTEND_URL.rstrip('/')}/reset-password"
+            f"?uid={uid}&token={token}"
+        )
+        send_mail(
+            "Reset your password",
+            f"Use the following link to reset your password. "
+            f"This link expires in ten minutes:\n\n{reset_url}",
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            fail_silently=False,
+        )
+
+    return JsonResponse({
+        "detail": "If an account with that email exists, a password reset link has been sent."
+    })
+
+
+@csrf_exempt
+@require_POST
+def reset_password_view(request):
+    try:
+        payload = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"detail": "Invalid JSON payload."}, status=400)
+
+    uid = payload.get("uid")
+    token = payload.get("token")
+    password = payload.get("password")
+    if not all(isinstance(value, str) and value for value in (uid, token, password)):
+        return JsonResponse(
+            {"detail": "Reset link and new password are required."},
+            status=400,
+        )
+
+    UserModel = get_user_model()
+    try:
+        user_id = force_str(urlsafe_base64_decode(uid))
+        user = UserModel.objects.get(pk=user_id, is_active=True)
+    except (TypeError, ValueError, OverflowError, UserModel.DoesNotExist):
+        return JsonResponse({"detail": "This reset link is invalid or expired."}, status=400)
+
+    if not default_token_generator.check_token(user, token):
+        return JsonResponse({"detail": "This reset link is invalid or expired."}, status=400)
+
+    try:
+        validate_password(password, user=user)
+    except ValidationError as error:
+        return JsonResponse({"detail": error.messages}, status=400)
+
+    user.set_password(password)
+    user.save(update_fields=["password"])
+    return JsonResponse({"detail": "Your password has been reset. You can now sign in."})
 
 # User List display Function
 @csrf_exempt
@@ -112,6 +239,15 @@ def user_list_view(request):
 @csrf_exempt
 @require_POST
 def logout_view(request):
+    if request.user.is_authenticated:
+        LogEntry.objects.log_create(
+            instance=request.user,
+            action=LogEntry.Action.ACCESS,
+            actor=request.user,
+            remote_addr=request.META.get("REMOTE_ADDR"),
+            additional_data={"message": "User logged out."},
+            force_log=True,
+        )
     logout(request)
     return JsonResponse({"success": True})
 
@@ -123,6 +259,39 @@ def current_user_view(request):
         return JsonResponse({"detail": "Not authenticated."}, status=401)
 
     return JsonResponse({"user": _user_payload(request.user)})
+
+@require_GET
+def user_audit_log_view(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"detail": "Not authenticated."}, status=401)
+    if not request.user.groups.filter(name__in=["superadmin", "admin"]).exists():
+        return JsonResponse({"detail": "Not authorized."}, status=403)
+
+    cutoff = timezone.now() - timedelta(days=365)
+    LogEntry.objects.filter(timestamp__lt=cutoff).delete()
+    logs = LogEntry.objects.filter(timestamp__gte=cutoff).select_related(
+        "actor", "content_type"
+    )
+    events = []
+    for entry in logs[:100]:
+        additional_data = entry.additional_data or {}
+        changes = entry.changes if isinstance(entry.changes, dict) else {}
+        events.append({
+            "id": entry.pk,
+            "actor": (
+                entry.actor.get_username()
+                if entry.actor_id
+                else "Unauthenticated"
+            ),
+            "subject": entry.object_repr,
+            "action": str(entry.get_action_display()),
+            "created_at": entry.timestamp.isoformat(),
+            "message": additional_data.get("message", ""),
+            "reason": additional_data.get("reason", ""),
+            "changed_fields": list(changes),
+        })
+
+    return JsonResponse({"events": events, "total": logs.count()})
 
 
 # Create New User Function

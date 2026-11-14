@@ -26,7 +26,7 @@ export default function AssetUploadPage() {
 
   // ✅ Only render upload page for authorized roles
   return (
-    <PrivateRoute roles={['admin', 'editor']} redirectTo="/dashboard">
+    <PrivateRoute roles={['superadmin', 'admin', 'editor']} redirectTo="/dashboard">
       {(user) => (
         <Sidebar user={user}>
           <Header
